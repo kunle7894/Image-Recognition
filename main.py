@@ -159,10 +159,19 @@ def select_file():
         initialdir='/',
         filetypes=filetypes)
 
+
 def select_file_update():
     global path
     path = select_file()
     app.displayNewCanvas()
+
+
+def select_directory():
+    global searchPath
+    searchPath = fd.askdirectory(
+        title='Open a directory',
+        initialdir='/')
+
 
 if __name__ == '__main__':
 
@@ -189,6 +198,22 @@ if __name__ == '__main__':
         command=select_file_update
     )
     newfile_button.place(x= 50, y=HEIGHT-100)
-    #newfile_button.pack(side=tk.LEFT)
+
+    chooseSearch_button = tk.Button(
+        root,
+        text="Choose File Directory",
+        command=select_directory
+    )
+    chooseSearch_button.place(x=WIDTH-300, y=HEIGHT-100)
+
+    search_button = tk.Button(
+        root,
+        text='Search',
+        command=select_file_update
+    )
+    search_button.place(x=WIDTH-100, y=HEIGHT-100)
+    searchPath = ""
+
+
 
     app.mainloop()
