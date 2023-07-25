@@ -1,6 +1,6 @@
 import tkinter as tk
 from PIL import Image, ImageTk
-
+from tkinter import filedialog as fd
 
 class MousePositionTracker(tk.Frame):
     """ Tkinter Canvas mouse position widget. """
@@ -124,8 +124,12 @@ class Application(tk.Frame):
 
     def __init__(self, parent, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
+        self.canvas = None #used to make sure canvas is initialized before potentially forgoten
+        self.displayNewCanvas()
 
-        path = "Books.jpg"
+    def displayNewCanvas(self):
+        if self.canvas is not None:
+            self.canvas.pack_forget()
         img = ImageTk.PhotoImage(Image.open(path))
         self.canvas = tk.Canvas(root, width=img.width(), height=img.height(),
                                 borderwidth=0, highlightthickness=0)
@@ -144,11 +148,25 @@ class Application(tk.Frame):
         # Create mouse position tracker that uses the function.
         self.posn_tracker = MousePositionTracker(self.canvas)
         self.posn_tracker.autodraw(command=on_drag)  # Enable callbacks.
+def select_file():
+    filetypes = (
+        ('PNG file', '*.png'),
+        ('JPEG file', '*.jpeg')
 
+    )
+    return fd.askopenfilename(
+        title='Open a file',
+        initialdir='/',
+        filetypes=filetypes)
+
+def select_file_update():
+    global path
+    path = select_file()
+    app.displayNewCanvas()
 
 if __name__ == '__main__':
 
-    WIDTH, HEIGHT = 900, 900
+    WIDTH, HEIGHT = 700, 700
     BACKGROUND = 'grey'
     TITLE = 'Image Cropper'
 
@@ -157,6 +175,20 @@ if __name__ == '__main__':
     root.geometry('%sx%s' % (WIDTH, HEIGHT))
     root.configure(background=BACKGROUND)
 
+    # Create a file chooser
+    path = select_file()
+
+
+
     app = Application(root, background=BACKGROUND)
     app.pack(side=tk.TOP, fill=tk.BOTH, expand=tk.TRUE)
+
+    newfile_button = tk.Button(
+        root,
+        text='Open a New File',
+        command=select_file_update
+    )
+    newfile_button.place(x= 50, y=HEIGHT-100)
+    #newfile_button.pack(side=tk.LEFT)
+
     app.mainloop()
