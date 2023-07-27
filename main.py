@@ -4,7 +4,7 @@ from tkinter import filedialog as fd, Label
 from skimage.metrics import structural_similarity as ssim
 import numpy as np
 import cv2
-
+import os
 
 class MousePositionTracker(tk.Frame):
     """ Tkinter Canvas mouse position widget. """
@@ -139,8 +139,7 @@ class Application(tk.Frame):
         if self.canvas is not None:
             self.canvas.pack_forget()
         img = ImageTk.PhotoImage(Image.open(path))
-        self.canvas = tk.Canvas(root, width=img.width(), height=img.height(),
-                                borderwidth=0, highlightthickness=0)
+        self.canvas = tk.Canvas(root, width=img.width(), height=img.height(), borderwidth=0, highlightthickness=0)
         self.canvas.pack(expand=True)
 
         self.canvas.create_image(0, 0, image=img, anchor=tk.NW)
@@ -156,8 +155,6 @@ class Application(tk.Frame):
         # Create mouse position tracker that uses the function.
         self.posn_tracker = MousePositionTracker(self.canvas)
 
-        global psn_tracker
-        psn_tracker = self.posn_tracker
         self.posn_tracker.autodraw(command=on_drag)  # Enable callbacks.
 
 
@@ -211,17 +208,48 @@ def compare_selection_directory():
     #get image of mini-selection
     imagecv = cv2.imread(path)
     global app
-    dim = psn_tracker.cur_selection()
+    global good_matches
+    good_matches = list()
+    dim = app.posn_tracker.cur_selection()
     print("Selection dimensions: ", dim)
-    #mini_image = imagecv[dim]
+    mini_image = imagecv[dim[0][1]:dim[1][1], dim[0][0]:dim[1][0]]
+    #test to make sure image shows
+    #cv2.imshow("Image", mini_image)
+    miniWidth, miniHeight, channels = mini_image.shape
+    for root, dirs, files in os.walk(searchPath):
+        for file in files:
+            if file.endswith(".jpeg") or file.endswith(".png"):
+                full_image = cv2.imread(os.path.join(root, file))
+                if full_image is None:
+                    break
+                fullWidth, fullHeight, channels = full_image.shape
+                xLoc = 0
+                yLoc = 0
+                found = False
+                while xLoc<fullWidth-miniWidth-1 and not found:
+                    yLoc = 0
+                    while yLoc<fullHeight-miniHeight-1 and not found:
+                        full_splice = full_image[xLoc:xLoc+miniWidth, yLoc:yLoc+miniHeight] #diminesions may be incorrect
+                        print("xLoc: ", xLoc, "yLoc: ", yLoc, "miniWidth: ", miniWidth, "miniHeight: ", miniHeight, "file", os.path.join(root, file))
+                        ssi_score = 0
+                        if full_splice.shape==mini_image.shape:
+                            ssi_score = ssim(mini_image, full_splice, channel_axis=2)
+
+                        print(ssi_score)
+                        if (ssi_score>0.80):
+                            cv2.imshow(os.path.join(root, file), full_image)
+                            cv2.waitKey(0)
+                            cv2.destroyAllWindows()
+                            good_matches.append(os.path.join(root, file))
+                            found = True
+                        yLoc += 1
+                    xLoc += 1
 
 
 if __name__ == '__main__':
-
     WIDTH, HEIGHT = 1920, 1080
     BACKGROUND = 'grey'
     TITLE = 'Image Cropper'
-    psn_tracker = None
     root = tk.Tk()
     root.title(TITLE)
     root.geometry('%sx%s' % (WIDTH, HEIGHT))
