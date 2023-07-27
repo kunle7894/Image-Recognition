@@ -1,15 +1,21 @@
 import tkinter as tk
 from PIL import Image, ImageTk
-from tkinter import filedialog as fd
+from tkinter import filedialog as fd, Label
+from skimage.metrics import structural_similarity as ssim
+import numpy as np
+import cv2
+
 
 class MousePositionTracker(tk.Frame):
     """ Tkinter Canvas mouse position widget. """
 
     def __init__(self, canvas):
+        self.end = (0, 0)
+        self.start = (0, 0)
         self.canvas = canvas
         self.canv_width = self.canvas.cget('width')
         self.canv_height = self.canvas.cget('height')
-        self.reset()
+        #self.reset()
 
         # Create canvas cross-hair lines.
         xhair_opts = dict(dash=(3, 2), fill='white', state=tk.HIDDEN)
@@ -35,6 +41,7 @@ class MousePositionTracker(tk.Frame):
         self.show()
 
     def reset(self):
+        print("reset")
         self.start = self.end = None
 
     def hide(self):
@@ -55,7 +62,7 @@ class MousePositionTracker(tk.Frame):
 
     def quit(self, event):
         self.hide()  # Hide cross-hairs.
-        self.reset()
+        #self.reset()
 
 
 class SelectionObject:
@@ -127,6 +134,7 @@ class Application(tk.Frame):
         self.canvas = None #used to make sure canvas is initialized before potentially forgoten
         self.displayNewCanvas()
 
+
     def displayNewCanvas(self):
         if self.canvas is not None:
             self.canvas.pack_forget()
@@ -147,7 +155,12 @@ class Application(tk.Frame):
 
         # Create mouse position tracker that uses the function.
         self.posn_tracker = MousePositionTracker(self.canvas)
+
+        global psn_tracker
+        psn_tracker = self.posn_tracker
         self.posn_tracker.autodraw(command=on_drag)  # Enable callbacks.
+
+
 def select_file():
     filetypes = (
         ('PNG file', '*.png'),
@@ -171,14 +184,44 @@ def select_directory():
     searchPath = fd.askdirectory(
         title='Open a directory',
         initialdir='/')
+    path_label.configure(text="Search Path: "+searchPath)
+
+
+def mse(imageA, imageB):
+    # the 'Mean Squared Error' between the two images is the
+    # sum of the squared difference between the two images;
+    # NOTE: the two images must have the same dimension
+    err = np.sum((imageA.astype("float") - imageB.astype("float")) ** 2)
+    err /= float(imageA.shape[0] * imageA.shape[1])
+
+    # return the MSE, the lower the error, the more "similar"
+    # the two images are
+    return err
+
+
+def compare_images(imageA, imageB):
+    # compute the mean squared error and structural similarity
+    # index for the images
+    m = mse(imageA, imageB)
+    s = ssim(imageA, imageB, channel_axis=2)
+    print("Mean Squared Error: ", m, "Strucutal Similarity Index: ", s)
+
+
+def compare_selection_directory():
+    #get image of mini-selection
+    imagecv = cv2.imread(path)
+    global app
+    dim = psn_tracker.cur_selection()
+    print("Selection dimensions: ", dim)
+    #mini_image = imagecv[dim]
 
 
 if __name__ == '__main__':
 
-    WIDTH, HEIGHT = 700, 700
+    WIDTH, HEIGHT = 1920, 1080
     BACKGROUND = 'grey'
     TITLE = 'Image Cropper'
-
+    psn_tracker = None
     root = tk.Tk()
     root.title(TITLE)
     root.geometry('%sx%s' % (WIDTH, HEIGHT))
@@ -186,8 +229,6 @@ if __name__ == '__main__':
 
     # Create a file chooser
     path = select_file()
-
-
 
     app = Application(root, background=BACKGROUND)
     app.pack(side=tk.TOP, fill=tk.BOTH, expand=tk.TRUE)
@@ -209,11 +250,15 @@ if __name__ == '__main__':
     search_button = tk.Button(
         root,
         text='Search',
-        command=select_file_update
+        command=compare_selection_directory
     )
     search_button.place(x=WIDTH-100, y=HEIGHT-100)
-    searchPath = ""
+    searchPath = "Search Path:"
 
-
-
+    path_label = Label(text=searchPath)
+    path_label.place(x=WIDTH - 600, y=HEIGHT - 100)
+    imageA = cv2.imread("apple.png")
+    imageB = cv2.imread("appleMecury.png")
+    print(imageA.shape, imageB.shape)
+    compare_images(imageA, imageB)
     app.mainloop()
